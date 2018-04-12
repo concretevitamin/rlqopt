@@ -3,6 +3,7 @@ package edu.berkeley.riselab.rlqopt;
 import edu.berkeley.riselab.rlqopt.relalg.JoinOperator;
 import edu.berkeley.riselab.rlqopt.relalg.ProjectOperator;
 import edu.berkeley.riselab.rlqopt.relalg.TableAccessOperator;
+import java.util.List;
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
@@ -50,7 +51,7 @@ public class RelAlgTest extends TestCase {
         "JoinOperator([ProjectOperator([TableAccessOperator([R294.a, R294.b, R294.c])]), TableAccessOperator([R294.a, R294.b, R294.c])])");
   }
 
-  public void testExpressionComposition() throws OperatorException {
+  public void testExpressionComposition() {
     Relation s = new Relation("a", "b", "c");
     Attribute a = s.get("a");
     assertEquals(a.toString(), "R294.a");
@@ -61,16 +62,15 @@ public class RelAlgTest extends TestCase {
     assertEquals(equals.toString(), "equals([R294.a, R294.b])");
   }
 
-  public void testExpressionAttribute() throws OperatorException {
+  public void testExpressionAttribute() {
     Relation s = new Relation("a", "b", "c");
     Attribute a = s.get("a");
     assertEquals(a.toString(), "R294.a");
 
-    Expression ea = a.getExpression();
     Expression eb = s.get("b").getExpression();
-    System.out.println(eb.getVisibleAttributes());
-    // fix
-    // assertEquals(a.toString(), "R294.a");
+    List<Attribute> attrs = eb.getVisibleAttributes();
+    assertEquals(1, attrs.size());
+    assertEquals("R294.b", attrs.get(0).toString());
   }
 
   public void testOperatorAttribute() throws OperatorException {

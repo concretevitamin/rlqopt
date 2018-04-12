@@ -4,6 +4,7 @@ import edu.berkeley.riselab.rlqopt.Attribute;
 import edu.berkeley.riselab.rlqopt.Expression;
 import java.util.HashSet;
 
+/** Statistics and baseline reduction factor estimations for an attribute. */
 public class AttributeStatistics {
 
   public long distinctValues;
@@ -42,7 +43,8 @@ public class AttributeStatistics {
   }
 
   private double estimateReductionFactorSingle(Expression e) throws CannotEstimateException {
-
+    // NOTE(zongheng): these are classical heuristics.  The (maxVal - minVal) clauses need a +1 to
+    // avoid division-by-zero.  See CS186 slide.
     if (e.op.equals(Expression.EQUALS)) {
 
       return clip10(1.0 / distinctValues);

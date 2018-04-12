@@ -36,6 +36,7 @@ public class CostTest extends TestCase {
     Expression e1 =
         new Expression(Expression.EQUALS, r.get("a").getExpression(), new Expression("1"));
 
+    // 1 / distinctValues.
     assertEquals(0.1, t.estimateReductionFactor(e1), 1e-6);
 
     Expression e2 = new Expression(Expression.NOT, e1);
@@ -67,6 +68,7 @@ public class CostTest extends TestCase {
     t.putStats(r.get("b"), b);
     t.putStats(r.get("c"), c);
 
+    // Estimated as the maximum cardinality across attributes.
     assertEquals(t.estimate(createScan(r)), new Cost(19, 19, 0));
 
     // System.out.println(a.estimateReductionFactor(e));
@@ -76,7 +78,7 @@ public class CostTest extends TestCase {
 
   public void testStatisticalCostEstimates2() throws OperatorException {
     Relation r = new Relation("a", "b", "c");
-    AttributeStatistics a = new AttributeStatistics(10, 10, 0, 10);
+    AttributeStatistics a = new AttributeStatistics(10, 12, 0, 10);
     AttributeStatistics b = new AttributeStatistics(10, 16, 0, 10);
     AttributeStatistics c = new AttributeStatistics(10, 19, 0, 10);
 
@@ -96,7 +98,9 @@ public class CostTest extends TestCase {
 
     // System.out.println(t.estimate(gb));
 
-    assertEquals(t.estimate(gb), new Cost(38, 10, 0));
+    // IO cost ~= self-estimate [child operator's cardinality (scan, 19)] + bring child in -> 38
+    // Cardinality ~= cardinality of attribute a ("...GROUP BY a")
+    assertEquals(t.estimate(gb), new Cost(38, 12, 0));
   }
 
   public void testStatisticalCostEstimates3() throws OperatorException {

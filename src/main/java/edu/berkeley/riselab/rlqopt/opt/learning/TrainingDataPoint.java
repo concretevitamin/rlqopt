@@ -3,13 +3,11 @@ package edu.berkeley.riselab.rlqopt.opt.learning;
 import edu.berkeley.riselab.rlqopt.Attribute;
 import edu.berkeley.riselab.rlqopt.Database;
 import edu.berkeley.riselab.rlqopt.Operator;
-import edu.berkeley.riselab.rlqopt.Relation;
 import edu.berkeley.riselab.rlqopt.opt.CostModel;
 import java.util.Arrays;
 import java.util.LinkedList;
-
-import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.factory.Nd4j;
 
 public class TrainingDataPoint {
 
@@ -39,21 +37,19 @@ public class TrainingDataPoint {
 
     for (Attribute a : oplist[1].getVisibleAttributes()) vector[allAttributes.indexOf(a) + n] = 1.0;
 
-    vector[2*n] = cost/db.size();
+    vector[2 * n] = cost / db.size();
 
     return vector;
   }
 
   public INDArray featurizeND4j(Database db, CostModel c) {
-    Double [] vector = featurize(db, c);
+    Double[] vector = featurize(db, c);
     int p = vector.length;
 
-    float [] xBuffer = new float[p-1];
+    float[] xBuffer = new float[p - 1];
 
-    for (int ind=0; ind<vector.length - 1; ind++)
-        xBuffer[ind] = vector[ind].floatValue();
+    for (int ind = 0; ind < vector.length - 1; ind++) xBuffer[ind] = vector[ind].floatValue();
 
-    return Nd4j.create(xBuffer,new int[]{1,p-1});
+    return Nd4j.create(xBuffer, new int[] {1, p - 1});
   }
-
 }

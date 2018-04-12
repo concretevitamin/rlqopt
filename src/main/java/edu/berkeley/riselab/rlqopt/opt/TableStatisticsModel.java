@@ -70,7 +70,6 @@ public class TableStatisticsModel extends HashMap<Attribute, LinkedList<Attribut
   }
 
   public Cost groupByOperator(Operator in, Cost costIn) {
-
     LinkedList<Attribute> al = in.params.secondary_expression.getAllVisibleAttributes();
     long estimate = cardinalityEstimate(al);
 
@@ -166,25 +165,21 @@ public class TableStatisticsModel extends HashMap<Attribute, LinkedList<Attribut
   }
 
   public Cost estimate(Operator in) {
-
-    Cost runningCost = new Cost(0, 0, 0);
-
     if (in instanceof TableAccessOperator) return tableAccessOperator(in);
 
-    if (in instanceof ProjectOperator)
-      return projectOperator(in, estimate(in.source.get(0))).plus(estimate(in.source.get(0)));
+    Cost left_cost = estimate(in.source.get(0));
 
-    if (in instanceof SelectOperator)
-      return selectOperator(in, estimate(in.source.get(0))).plus(estimate(in.source.get(0)));
+    if (in instanceof ProjectOperator) return projectOperator(in, left_cost).plus(left_cost);
 
-    if (in instanceof GroupByOperator)
-      return groupByOperator(in, estimate(in.source.get(0))).plus(estimate(in.source.get(0)));
+    if (in instanceof SelectOperator) return selectOperator(in, left_cost).plus(left_cost);
 
-    if (in instanceof JoinOperator)
-      return joinOperator(in, estimate(in.source.get(0)), estimate(in.source.get(1)))
-          .plus(estimate(in.source.get(0)))
-          .plus(estimate(in.source.get(1)));
+    if (in instanceof GroupByOperator) return groupByOperator(in, left_cost).plus(left_cost);
 
-    return runningCost;
+    if (in instanceof JoinOperator) {
+      Cost right_cost = estimate(in.source.get(1));
+      return joinOperator(in, left_cost, right_cost).plus(left_cost).plus(right_cost);
+    }
+
+    return new Cost(0, 0, 0);
   }
 }
