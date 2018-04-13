@@ -1,6 +1,7 @@
 package edu.berkeley.riselab.rlqopt;
 
 import edu.berkeley.riselab.rlqopt.opt.Planner;
+import edu.berkeley.riselab.rlqopt.preopt.BreakdownSubqueries;
 import edu.berkeley.riselab.rlqopt.preopt.CascadedSelect;
 import edu.berkeley.riselab.rlqopt.preopt.EagerSelectProject;
 import edu.berkeley.riselab.rlqopt.preopt.ExposeProjection;
@@ -9,12 +10,14 @@ import edu.berkeley.riselab.rlqopt.preopt.InitRewrite;
 import edu.berkeley.riselab.rlqopt.preopt.PreOptimizationRewrite;
 import edu.berkeley.riselab.rlqopt.relalg.GroupByOperator;
 import edu.berkeley.riselab.rlqopt.relalg.JoinOperator;
+import edu.berkeley.riselab.rlqopt.relalg.KWayJoinOperator;
 import edu.berkeley.riselab.rlqopt.relalg.SelectOperator;
 import edu.berkeley.riselab.rlqopt.relalg.TableAccessOperator;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
@@ -262,6 +265,87 @@ public class PreoptTest extends TestCase {
     // NOTE(zongheng): currently the transformation rules are side-effectful, so we save the
     // original plan's string representation for comparison.
     assertTrue(!originalPlan.equals(planned.toString()));
+  }
+
+  public void testBreakdownGroupByChain() throws OperatorException {
+    Relation r = new Relation("a", "b");
+    // The plan of "outerGb" looks like:  GB <- GB <- Scan.
+    Operator outerGb = buildGroupByChain(r);
+
+    // After transformation, the list should contain 2 pieces, rooted at the 2 GB's, respectively.
+    List<Operator> pieces = BreakdownSubqueries.apply(outerGb);
+    assertEquals(2, pieces.size());
+    assertEquals(
+        "GroupByOperator([GroupByOperator([TableAccessOperator([R195.a, R195.b])])])",
+        pieces.get(0).toString());
+    assertEquals(
+        "GroupByOperator([TableAccessOperator([R195.a, R195.b])])", pieces.get(1).toString());
+  }
+
+  public void testBreakdownKWayJoin() throws OperatorException {
+    Relation r = new Relation("a", "b");
+    Relation s = new Relation("a", "b", "c");
+    Operator groupByOnR = buildGroupByChain(r);
+    Operator groupByOnS = buildGroupByChain(s);
+
+    Expression joinCond =
+        new Expression(Expression.EQUALS, r.get("b").getExpression(), s.get("b").getExpression());
+    OperatorParameters params = new OperatorParameters(joinCond.getExpressionList());
+    Operator kWayJoin = new KWayJoinOperator(params, groupByOnR, groupByOnS);
+
+    // The plan of "kWayJoin" looks like:
+    //     KWayJoin
+    //     /      \
+    //   GB       GB
+    //    |        |
+    //   GB       GB
+    //    |        |
+    // SCAN(R)  SCAN(S)
+    //
+    // After transformation, the list should contain 3 pieces:
+    //
+    // 1 rooted at KWayJoin,
+    // 1 rooted at GB that is the left child of KWJ,
+    // and 1 rooted at GB that is the right child of KWJ.
+    List<Operator> ops = BreakdownSubqueries.apply(kWayJoin);
+
+    // Note that the transformation internally uses a HashSet, so we sort the strings for
+    // comparison.
+    List<String> pieces =
+        ops.stream().map(Operator::toString).sorted().collect(Collectors.toList());
+
+    assertEquals(3, pieces.size());
+    // R.
+    assertEquals("GroupByOperator([TableAccessOperator([R195.a, R195.b])])", pieces.get(0));
+    // S.
+    assertEquals("GroupByOperator([TableAccessOperator([R294.a, R294.b, R294.c])])", pieces.get(1));
+    // Too long to enter the full string.
+    assertTrue(pieces.get(2).startsWith("KWayJoinOperator"));
+  }
+
+  /**
+   * Builds a plan of the form "GB <- GB <- SCAN". Requires that "r" contains attributes "a", "b".
+   */
+  private Operator buildGroupByChain(Relation r) throws OperatorException {
+    // Subquery:
+    // SELECT b, COUNT(1)
+    // FROM R
+    // GROUP BY a
+    ExpressionList attributeA = r.get("a").getExpression().getExpressionList();
+    ExpressionList attributeB = r.get("b").getExpression().getExpressionList();
+    ExpressionList countAll = new ExpressionList(new Expression("count", new Expression("1")));
+    ExpressionList bAndCountAll = ExpressionList.of(attributeB, countAll);
+    OperatorParameters groupbyParams = new OperatorParameters(bAndCountAll, attributeA);
+    Operator gb = new GroupByOperator(groupbyParams, createScan(r));
+
+    // Composite query:
+    // SELECT b, COUNT(1)
+    // FROM (
+    //     previous subquery "gb"
+    // )
+    // GROUP BY b
+    OperatorParameters outerGbParams = new OperatorParameters(bAndCountAll, attributeB);
+    return new GroupByOperator(outerGbParams, gb);
   }
 
   private Operator createScan(Relation r) throws OperatorException {

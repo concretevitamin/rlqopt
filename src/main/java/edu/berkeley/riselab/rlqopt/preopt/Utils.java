@@ -8,11 +8,11 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class Utils {
-  static List<Operator> map(List<Operator> in, Function<Operator, Operator> func) {
+  public static List<Operator> map(List<Operator> in, Function<Operator, Operator> func) {
     return in.stream().map(func).collect(Collectors.toList());
   }
 
-  static List<Operator> filterRecursive(Operator in, Predicate<Operator> pred) {
+  public static List<Operator> filterRecursive(Operator in, Predicate<Operator> pred) {
     LinkedList<Operator> operators = new LinkedList<>();
     if (pred.test(in)) {
       operators.add(in);

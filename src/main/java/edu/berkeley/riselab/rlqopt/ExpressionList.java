@@ -1,16 +1,23 @@
 package edu.berkeley.riselab.rlqopt;
 
+import java.util.Collections;
 import java.util.LinkedList;
 
 /** Convenience class to represent a list of expressions. */
 public class ExpressionList extends LinkedList<Expression> {
 
+  public static ExpressionList of(ExpressionList... args) {
+    ExpressionList result = new ExpressionList();
+    for (ExpressionList list : args) {
+      result.addAll(list);
+    }
+    return result;
+  }
+
   // create it explicitly named
   public ExpressionList(Expression... args) {
-
     super();
-
-    for (Expression e : args) this.add(e);
+    Collections.addAll(this, args);
   }
 
   // noop loading an attribute
